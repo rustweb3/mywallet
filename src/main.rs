@@ -1,5 +1,6 @@
 use {
     ansi_term::Color::Green,
+    base58::ToBase58,
     bip32::{DerivationPath, PublicKey, XPrv},
     bip39::{Language, Mnemonic},
     blake2b_simd::{Hash, Params},
@@ -118,4 +119,39 @@ fn main() {
     payload.extend_from_slice(&sui_pub_bytes);
     let h = msg_hash(&payload);
     println!("sui address: 0x{}", h.to_hex());
+
+    println!(
+        "\n{}",
+        Green.paint("============ Generarte solana address ============")
+    );
+
+    // pubkey: 852mPVXMXNKMuBr4bM2fbRyRfaQk2ZUwY9uyDL8X7BPA
+    // carpet detect differ kite atom account cry onion chase provide general olive
+
+    let sol_path = DerivationPath::from_str("m/44'/501'/0'/0'").unwrap();
+    // let evm_xprv = XPrv::derive_from_path(seeds, &sol_path).unwrap();
+    // println!("evm xprv: {:?}", evm_xprv.to_bytes());
+    let indexes = sol_path
+        .into_iter()
+        .map(|i: bip32::ChildNumber| i.into())
+        .collect::<Vec<_>>();
+    let derived = slip_10_ed25519::derive_ed25519_private_key(&seeds, &indexes);
+    // println!("derived: {:?}", derived);
+
+    let sol_key = ed25519_dalek::SigningKey::from_bytes(&derived);
+    println!("solana secret key: {}", sol_key.to_bytes().to_base58());
+    let sol_pub = sol_key.verifying_key();
+    println!("solana public key: 0x{}", hex::encode(sol_pub.to_bytes()));
+    println!("solana address: {}", sol_pub.to_bytes().to_base58());
+
+    println!("\nAlso solana cli use seed slice 0,32 directly");
+    let sol_key = ed25519_dalek::SigningKey::from_bytes(
+        &seeds[0..32]
+            .try_into()
+            .expect("slice with incorrect length"),
+    );
+    println!("solana secret key: {}", sol_key.to_bytes().to_base58());
+    let sol_pub = sol_key.verifying_key();
+    println!("solana public key: {}", hex::encode(sol_pub.to_bytes()));
+    println!("solana address: {}", sol_pub.to_bytes().to_base58());
 }
