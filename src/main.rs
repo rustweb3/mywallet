@@ -12,7 +12,6 @@ use {
 };
 
 mod slip_10_ed25519;
-mod tui;
 
 // this is used to generate sui address
 pub fn msg_hash(msg: &Vec<u8>) -> Hash {
