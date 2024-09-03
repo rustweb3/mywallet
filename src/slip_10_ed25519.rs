@@ -1,8 +1,17 @@
+use bip32::DerivationPath;
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
+pub fn derive_ed25519_private_key_by_path(seed: &[u8], path: DerivationPath) -> [u8; 32] {
+    let indexes = path
+        .into_iter()
+        .map(|i: bip32::ChildNumber| i.into())
+        .collect::<Vec<_>>();
+    derive_ed25519_private_key(seed, &indexes)
+}
+
 #[allow(non_snake_case)]
-pub fn derive_ed25519_private_key(seed: &[u8], indexes: &[u32]) -> [u8; 32] {
+fn derive_ed25519_private_key(seed: &[u8], indexes: &[u32]) -> [u8; 32] {
     let mut I = hmac_sha512(b"ed25519 seed", &seed);
     let mut data = [0u8; 37];
 

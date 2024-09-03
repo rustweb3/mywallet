@@ -376,6 +376,7 @@ dependencies = [
  "hex",
  "hmac",
  "rand",
+ "ripemd",
  "sha2",
  "sha3",
 ]

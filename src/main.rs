@@ -7,11 +7,46 @@ use {
     dotenv,
     ed25519_dalek::VerifyingKey as Ed25519VerifyingKey,
     hex,
+    ripemd::Ripemd160,
+    sha2::Sha256,
     sha3::Digest,
     std::{env, io::Write, str::FromStr},
 };
 
 mod slip_10_ed25519;
+
+enum BtcNetwork {
+    Mainnet,
+    Testnet,
+}
+
+impl BtcNetwork {
+    // 0x00 is mainnet, 0x6f is testnet
+    fn to_byte(&self) -> u8 {
+        match self {
+            BtcNetwork::Mainnet => 0x00,
+            BtcNetwork::Testnet => 0x6f,
+        }
+    }
+}
+
+// this is used to generate btc address with P2PKH
+pub fn btc_address(pubkey: &[u8], network: BtcNetwork) -> String {
+    let sha256_result = Sha256::digest(pubkey);
+    let ripemd160_result = Ripemd160::digest(&sha256_result);
+
+    let mut extended_ripemd160 = Vec::with_capacity(21);
+    extended_ripemd160.push(network.to_byte());
+    extended_ripemd160.extend(&ripemd160_result);
+    let checksum = {
+        let hash1 = Sha256::digest(&extended_ripemd160);
+        let hash2 = Sha256::digest(&hash1);
+        hash2[0..4].to_vec()
+    };
+
+    extended_ripemd160.extend(checksum.to_vec());
+    extended_ripemd160.to_base58()
+}
 
 // this is used to generate sui address
 pub fn msg_hash(msg: &Vec<u8>) -> Hash {
@@ -20,7 +55,6 @@ pub fn msg_hash(msg: &Vec<u8>) -> Hash {
 }
 
 fn main() {
-    println!("");
     dotenv::dotenv().ok();
     let words = {
         let words = env::var("words");
@@ -44,6 +78,24 @@ fn main() {
     };
 
     let seeds = words.to_seed("");
+
+    println!(
+        "\n{}",
+        Green.paint("==========  Bitcoin Address Generate  ==========")
+    );
+
+    let btc_derive_path = "m/44'/0'/0'/0/0";
+    let btc_derive_path = DerivationPath::from_str(btc_derive_path).unwrap();
+    let btc_key: XPrv = XPrv::derive_from_path(seeds, &btc_derive_path).unwrap();
+    let btc_public_key = btc_key.private_key().verifying_key();
+    println!(
+        "btc mainnet address: {}",
+        btc_address(&btc_public_key.to_bytes(), BtcNetwork::Mainnet)
+    );
+    println!(
+        "btc testnet address: {}",
+        btc_address(&btc_public_key.to_bytes(), BtcNetwork::Testnet)
+    );
 
     println!(
         "\n{}",
@@ -74,12 +126,7 @@ fn main() {
     // Generate an Aptos address by SLIP-0010
     let aptos_derive_path = "m/44'/637'/0'/0'/0'";
     let aptos_derive_path = DerivationPath::from_str(aptos_derive_path).unwrap();
-    let indexes = aptos_derive_path
-        .into_iter()
-        .map(|i: bip32::ChildNumber| i.into())
-        .collect::<Vec<_>>();
-
-    let derived = slip_10_ed25519::derive_ed25519_private_key(&seeds, &indexes);
+    let derived = slip_10_ed25519::derive_ed25519_private_key_by_path(&seeds, aptos_derive_path);
     let apt_key = ed25519_dalek::SigningKey::from_bytes(&derived);
 
     let verify_key = apt_key.verifying_key();
@@ -103,11 +150,7 @@ fn main() {
     );
 
     let mypath = DerivationPath::from_str("m/44'/784'/0'/0'/0").unwrap();
-    let indexes = mypath
-        .into_iter()
-        .map(|i: bip32::ChildNumber| i.into())
-        .collect::<Vec<_>>();
-    let derived = slip_10_ed25519::derive_ed25519_private_key(&seeds, &indexes);
+    let derived = slip_10_ed25519::derive_ed25519_private_key_by_path(&seeds, mypath);
     let sui_key = ed25519_dalek::SigningKey::from_bytes(&derived);
     println!("sui secret key: 0x{}", hex::encode(sui_key.to_bytes()));
     let sui_pub = sui_key.verifying_key();
@@ -128,13 +171,7 @@ fn main() {
     // carpet detect differ kite atom account cry onion chase provide general olive
 
     let sol_path = DerivationPath::from_str("m/44'/501'/0'/0'").unwrap();
-    // let evm_xprv = XPrv::derive_from_path(seeds, &sol_path).unwrap();
-    // println!("evm xprv: {:?}", evm_xprv.to_bytes());
-    let indexes = sol_path
-        .into_iter()
-        .map(|i: bip32::ChildNumber| i.into())
-        .collect::<Vec<_>>();
-    let derived = slip_10_ed25519::derive_ed25519_private_key(&seeds, &indexes);
+    let derived = slip_10_ed25519::derive_ed25519_private_key_by_path(&seeds, sol_path);
     // println!("derived: {:?}", derived);
 
     let sol_key = ed25519_dalek::SigningKey::from_bytes(&derived);
