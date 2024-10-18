@@ -31,7 +31,7 @@ impl BtcNetwork {
 }
 
 // this is used to generate btc address with P2PKH
-pub fn btc_address(pubkey: &[u8], network: BtcNetwork) -> String {
+fn btc_address(pubkey: &[u8], network: BtcNetwork) -> String {
     let sha256_result = Sha256::digest(pubkey);
     let ripemd160_result = Ripemd160::digest(&sha256_result);
 
@@ -57,7 +57,7 @@ pub fn msg_hash(msg: &Vec<u8>) -> Hash {
 fn main() {
     dotenv::dotenv().ok();
     let words = {
-        let words = env::var("words");
+        let words: Result<String, env::VarError> = env::var("words");
         if words.is_err() {
             let mut rng = rand::thread_rng();
             println!("{}", Green.paint("words is empty,generate new words "));
@@ -164,7 +164,7 @@ fn main() {
 
     println!(
         "\n{}",
-        Green.paint("============ Generarte solana address ============")
+        Green.paint("============ Generarte solana address (Backpack) ============")
     );
 
     // pubkey: 852mPVXMXNKMuBr4bM2fbRyRfaQk2ZUwY9uyDL8X7BPA
@@ -180,7 +180,8 @@ fn main() {
     println!("solana public key: 0x{}", hex::encode(sol_pub.to_bytes()));
     println!("solana address: {}", sol_pub.to_bytes().to_base58());
 
-    println!("\nAlso solana cli use seed slice 0,32 directly");
+    println!("\n --- Also solana cli use seed slice 0,32 as sign key directly");
+
     let sol_key = ed25519_dalek::SigningKey::from_bytes(
         &seeds[0..32]
             .try_into()
